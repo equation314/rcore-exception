@@ -5,3 +5,6 @@ authors = ["equation314 <equation618@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+
+[target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
+riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
