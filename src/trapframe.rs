@@ -1,5 +1,8 @@
 use core::fmt::{Debug, Error, Formatter};
-use riscv::register::{scause::Scause, sstatus::Sstatus};
+use riscv::register::{
+    scause::Scause,
+    sstatus::{self, Sstatus},
+};
 
 #[repr(C)]
 #[derive(Clone)]
@@ -9,6 +12,36 @@ pub struct TrapFrame {
     pub sepc: usize,      // Supervisor exception program counter
     pub stval: usize,     // Supervisor trap value
     pub scause: Scause,   // Scause register: record the cause of exception/interrupt/trap
+}
+
+impl TrapFrame {
+    pub fn new(entry: usize, arg: usize, sp: usize) -> Self {
+        let mut tf: Self = unsafe { core::mem::zeroed() };
+        tf.x[10] = arg; // a0
+        tf.x[2] = sp;
+        tf.sepc = entry as usize;
+        tf
+    }
+
+    pub fn kernel(mut self) -> Self {
+        self.sstatus.set_spp(sstatus::SPP::Supervisor);
+        self
+    }
+
+    pub fn user(mut self) -> Self {
+        self.sstatus.set_spp(sstatus::SPP::User);
+        self
+    }
+
+    pub fn enable_ints(mut self) -> Self {
+        self.sstatus.set_spie(true);
+        self
+    }
+
+    pub fn status(mut self, s: Sstatus) -> Self {
+        self.sstatus = s;
+        self
+    }
 }
 
 impl Debug for TrapFrame {
