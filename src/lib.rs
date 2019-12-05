@@ -5,5 +5,5 @@ pub mod handler;
 pub mod trap;
 pub mod trapframe;
 
-pub use handler::{DefaultRvHandler, RvHandler};
+pub use handler::{DefaultHandler, Handler};
 pub use trapframe::TrapFrame;

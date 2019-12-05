@@ -1,6 +1,6 @@
 use crate::TrapFrame;
 
-pub trait RvHandler {
+pub trait Handler {
     fn debug(_tf: &TrapFrame) {}
 
     fn handle_timer() {}
@@ -16,8 +16,23 @@ pub trait RvHandler {
     fn handle_other(_tf: &mut TrapFrame) {
         panic!("unexpected trap");
     }
+
+    extern "C" fn handle(tf: &mut TrapFrame) {
+        use riscv::register::scause::{Exception as E, Interrupt as I, Trap};
+        Self::debug(tf);
+        match tf.scause.cause() {
+            Trap::Interrupt(I::SupervisorExternal) => Self::handle_external(),
+            Trap::Interrupt(I::SupervisorTimer) => Self::handle_timer(),
+            Trap::Exception(E::Breakpoint) => Self::handle_breakpoint(tf),
+            Trap::Exception(E::UserEnvCall) => Self::handle_syscall(tf),
+            Trap::Exception(E::LoadPageFault) => Self::handle_page_fault(tf),
+            Trap::Exception(E::StorePageFault) => Self::handle_page_fault(tf),
+            Trap::Exception(E::InstructionPageFault) => Self::handle_page_fault(tf),
+            _ => Self::handle_other(tf),
+        }
+    }
 }
 
-pub struct DefaultRvHandler;
+pub struct DefaultHandler;
 
-impl RvHandler for DefaultRvHandler {}
+impl Handler for DefaultHandler {}

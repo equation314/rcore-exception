@@ -1,4 +1,4 @@
-use crate::{DefaultRvHandler, RvHandler, TrapFrame};
+use crate::{DefaultHandler, Handler, TrapFrame};
 use riscv::register::{sie, sscratch, stvec};
 
 #[cfg(target_arch = "riscv32")]
@@ -45,9 +45,9 @@ global_asm!(include_str!("trap.S"));
 type TrapHandlerFn = extern "C" fn(tf: &mut TrapFrame);
 
 #[no_mangle]
-static mut TRAP_HANDLER_FN: TrapHandlerFn = trap_handler::<DefaultRvHandler>;
+static mut TRAP_HANDLER_FN: TrapHandlerFn = DefaultHandler::handle;
 
-pub fn init<H: RvHandler>() {
+pub fn init<H: Handler>() {
     unsafe {
         // Set sscratch register to 0, indicating to exception vector that we are
         // presently executing in the kernel
@@ -57,22 +57,7 @@ pub fn init<H: RvHandler>() {
         // Enable external interrupt
         sie::set_sext();
         // Set the actual function address called from asm according to the handler
-        TRAP_HANDLER_FN = trap_handler::<H>;
-    }
-}
-
-extern "C" fn trap_handler<H: RvHandler>(tf: &mut TrapFrame) {
-    use riscv::register::scause::{Exception as E, Interrupt as I, Trap};
-    H::debug(tf);
-    match tf.scause.cause() {
-        Trap::Interrupt(I::SupervisorExternal) => H::handle_external(),
-        Trap::Interrupt(I::SupervisorTimer) => H::handle_timer(),
-        Trap::Exception(E::Breakpoint) => H::handle_breakpoint(tf),
-        Trap::Exception(E::UserEnvCall) => H::handle_syscall(tf),
-        Trap::Exception(E::LoadPageFault) => H::handle_page_fault(tf),
-        Trap::Exception(E::StorePageFault) => H::handle_page_fault(tf),
-        Trap::Exception(E::InstructionPageFault) => H::handle_page_fault(tf),
-        _ => H::handle_other(tf),
+        TRAP_HANDLER_FN = H::handle;
     }
 }
 
